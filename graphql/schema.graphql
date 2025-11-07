@@ -1,41 +1,78 @@
-"A datetime string with format `Y-m-d H:i:s`, e.g. `2018-05-23 13:43:32`."
-scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\DateTime")
-
-"Indicates what fields are available at the top level of a query operation."
-type Query {
-    "Find a single user by an identifying attribute."
-    user(
-      "Search by primary key."
-      id: ID @eq @rules(apply: ["prohibits:email", "required_without:email"])
-
-      "Search by email address."
-      email: String @eq @rules(apply: ["prohibits:id", "required_without:id", "email"])
-    ): User @find
-
-    "List multiple users."
-    users(
-      "Filters by name. Accepts SQL LIKE wildcards `%` and `_`."
-      name: String @where(operator: "like")
-    ): [User!]! @paginate(defaultCount: 10)
+# Types
+type AuthResponse {
+  success: Boolean!
+  message: String
+  errors: [String]
+  token: String
+  user: User
 }
 
-"Account of a person who uses this application."
+type TodoResponse {
+  success: Boolean!
+  message: String
+  errors: [String]
+  todo: Todo
+}
+
 type User {
-    "Unique primary key."
-    id: ID!
+  id: ID!,
+  name: String!,
+  email: String!,
+  todos: [Todo!]! @hasMany # list of todos for the user
+}
 
-    "Non-unique name."
-    name: String!
+type Todo {
+  id: ID!,
+  title: String!,
+  description: String!,
+  completed: Boolean,
+  created_at: String!,
+  user: User! @belongsTo # relation to user
+}
 
-    "Unique email address."
-    email: String!
+# Queries (for getting data)
+type Query {
+  # get todos of authenticated user
+  todos: [Todo!]!
+  @guard
+  @field(resolver: "App\\GraphQL\\TodoResolver@todos")
+  # get specific todo by id
+  todo(id: ID): Todo 
+  @guard
+  @field(resolver: "App\\GraphQL\\TodoResolver@todo")
+}
 
-    "When the email was verified."
-    email_verified_at: DateTime
+# Mutation (this for changing or adding or deleting data)
+type Mutation {
+  # register
+  register(name: String!, email: String!, password: String): AuthResponse
+  @field(resolver: "App\\GraphQL\\AuthResolver@register")
 
-    "When the account was created."
-    created_at: DateTime!
+  #lofin
+  login(email: String!, password: String!): AuthResponse
+  @field(resolver: "App\\GraphQL\\AuthResolver@login")
 
-    "When the account was last updated."
-    updated_at: DateTime!
+  # logout
+  logout: Boolean!
+  @field(resolver: "App\\GraphQL\\AuthResolver@logout")
+
+  # create new todo for authenticated user
+  createTodo(title: String!, description: String!): TodoResponse 
+  @guard
+  @field(resolver: "App\\GraphQL\\TodoResolver@create")
+
+  # update todo
+  updateTodo(id: ID!,title: String!, description: String!): TodoResponse
+  @guard
+  @field(resolver: "App\\GraphQL\\TodoResolver@update")
+
+  # delete todo
+  deleteTodo(id: ID!): TodoResponse
+  @guard
+  @field(resolver: "App\\GraphQL\\TodoResolver@delete")
+
+  # mark as completed or not
+  markTodoAsCompletedOrNot(id: ID!): TodoResponse
+  @guard
+  @field(resolver: "App\\GraphQL\\TodoResolver@markAsCompletedOrNot")
 }
