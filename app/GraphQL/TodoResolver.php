@@ -2,50 +2,31 @@
 
 namespace App\GraphQL;
 
+use App\Services\TodoService;
 use Illuminate\Support\Facades\Validator;
 
 class TodoResolver
 {
+    public function __construct(
+        protected TodoService $todoService
+    ){}
     // get all todos
     public function todos($root, array $arguments, $context)
-    {
-        $user = $context->user();
-
-        return $user->todos()->get();
+    {        
+        return $this->todoService->getTodos($context->user());;
     }
 
     // get single todo
     public function todo($root, array $arguments, $context)
     {
-        $user = $context->user();
-
-        return $user->todos()->findOrFail($arguments['id']);
+        return $this->todoService->getTodo($context->user(), $arguments['id']);
     }
 
     // create new todo
     public function create($root, array $arguments, $context)
     {
         try {
-            $validator = Validator::make($arguments, [
-                'title' => 'required|string|max:255',
-                'description' => 'required|string|max:1000',
-            ]);
-
-            if ($validator->fails()) {
-                return [
-                    'success' => false,
-                    'message' => 'The validation is failed',
-                    'errors' => $validator->errors()->all(),
-                ];
-            }
-
-            $user = $context->user();
-
-            $todo = $user->todos()->create([
-                'title' => $arguments['title'],
-                'description' => $arguments['description'],
-                'completed' => false,
-            ]);
+            $todo = $this->todoService->createTodo($context->user(), $arguments);
 
             return [
                 'success' => true,
@@ -54,7 +35,11 @@ class TodoResolver
                 'todo' => $todo
             ];
         } catch (\Throwable $th) {
-            throw new \Exception('Creating todo failed !, ' . $th->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Creating todo failed !, ' . $th->getMessage(),
+                'errors' => [],
+            ];
         }
     }
 
@@ -62,25 +47,7 @@ class TodoResolver
     public function update($root, array $arguments, $context)
     {
         try {
-            $validator = Validator::make($arguments, [
-                'title' => 'required|string|max:255',
-                'description' => 'required|string|max:1000',
-            ]);
-
-            if ($validator->fails()) {
-                return [
-                    'success' => false,
-                    'message' => 'The validation is failed',
-                    'errors' => $validator->errors()->all(),
-                ];
-            }
-
-            $user = $context->user();
-
-            $todo = $user->todos()->findOrFail($arguments['id']);
-            $todo->title = $arguments['title'];
-            $todo->description = $arguments['description'];
-            $todo->save();
+            $todo = $this->todoService->updateTodo($context->user(), $arguments);
 
             return [
                 'success' => true,
@@ -89,7 +56,11 @@ class TodoResolver
                 'todo' => $todo
             ];
         } catch (\Throwable $th) {
-            throw new \Exception('Updating todo failed !, ' . $th->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Updating todo failed !, ' . $th->getMessage(),
+                'errors' => []
+            ];
         }
     }
 
@@ -97,9 +68,7 @@ class TodoResolver
     public function delete($root, array $arguments, $context)
     {
         try {
-            $user = $context->user();
-
-            $user->todos()->findOrFail($arguments['id'])->delete();
+            $this->todoService->deleteTodo($context->user(), $arguments['id']);
 
             return [
                 'success' => true,
@@ -107,7 +76,11 @@ class TodoResolver
                 'errors' => [],
             ];
         } catch (\Throwable $th) {
-            throw new \Exception('Deleting todo failed !, ' . $th->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Deleting todo failed !, ' . $th->getMessage(),
+                'errors' => [],
+            ];
         }
     }
 
@@ -115,12 +88,7 @@ class TodoResolver
     public function markAsCompletedOrNot($root, array $arguments, $context)
     {
         try {
-            $user = $context->user();
-
-            $todo = $user->todos()->findOrFail($arguments['id']);
-
-            $todo->completed = !$todo->completed;
-            $todo->save();
+            $todo = $this->todoService->markAsCompletedOrNot($context->user(), $arguments['id']);
 
             return [
                 'success' => true,
@@ -129,7 +97,11 @@ class TodoResolver
                 'todo' => $todo
             ];
         } catch (\Throwable $th) {
-            throw new \Exception('Marking todo as completed or not failed !, ' . $th->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Marking todo as completed or not failed !, ' . $th->getMessage(),
+                'errors' => []
+            ];
         }
     }
 }
